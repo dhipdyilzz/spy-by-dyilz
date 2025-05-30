@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Who's the Spy - Versi Keren</title>
+  <style>
+    :root {
+      --bg: #f2f2f2;
+      --card-bg: #fff;
+      --text: #000;
+      --primary: #007BFF;
+      --primary-dark: #0056b3;
+      --success: #28a745;
+      --error: #dc3545;
+      --transition: 0.3s ease;
+    }
+
+    [data-theme="dark"] {
+      --bg: #121212;
+      --card-bg: #1f1f1f;
+      --text: #f2f2f2;
+      --primary: #3399ff;
+      --primary-dark: #007acc;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      text-align: center;
+      padding: 20px;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      transition: background var(--transition), color var(--transition);
+      user-select: none;
+    }
+
+    .card {
+      background: var(--card-bg);
+      padding: 25px;
+      margin: 20px auto;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      max-width: 420px;
+      transition: opacity 0.5s ease, transform 0.3s ease;
+    }
+
+    .card.hidden {
+      opacity: 0;
+      transform: translateY(20px);
+      pointer-events: none;
+      position: absolute;
+      left: 50%;
+      transform: translate(-50%, 20px);
+      width: 90%;
+      max-width: 420px;
+    }
+
+    h1 {
+      font-size: 26px;
+      margin-bottom: 12px;
+      user-select: text;
+    }
+
+    input, button {
+      font-size: 16px;
+      padding: 12px;
+      margin: 10px 0;
+      width: 90%;
+      max-width: 320px;
+      border-radius: 10px;
+      border: 1px solid #ccc;
+      outline-offset: 2px;
+      outline-color: transparent;
+      transition: outline-color 0.3s ease, box-shadow 0.3s ease;
+      user-select: text;
+    }
+
+    input:focus {
+      outline-color: var(--primary);
+      box-shadow: 0 0 8px var(--primary);
+    }
+
+    button {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      box-shadow: 0 4px 6px rgba(0,123,255,0.4);
+      user-select: none;
+      transition: background-color 0.3s ease, box-shadow 0.3s ease, transform 0.1s ease;
+    }
+
+    button:hover:not(:disabled) {
+      background-color: var(--primary-dark);
+      box-shadow: 0 6px 10px rgba(0,123,255,0.7);
+      transform: translateY(-2px);
+    }
+
+    button:active:not(:disabled) {
+      transform: translateY(0);
+      box-shadow: 0 3px 6px rgba(0,123,255,0.6);
+    }
+
+    button:disabled {
+      background-color: #999;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .hidden { display: none !important; }
+
+    .large-text {
+      font-size: 34px;
+      margin: 35px 0;
+      user-select: text;
+    }
+
+    .vote-list button {
+      margin: 6px 0;
+      width: 100%;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+
+    .highlight { font-weight: 700; color: var(--success); user-select: text; }
+    .wrong { color: var(--error); user-select: text; }
+
+    #controls {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      gap: 12px;
+      z-index: 1100;
+      user-select: none;
+    }
+
+    #timer {
+      font-size: 56px;
+      font-weight: 700;
+      color: var(--primary);
+      user-select: none;
+      animation: pulse 1s infinite alternate;
+    }
+
+    @keyframes pulse {
+      0% { color: var(--primary); }
+      100% { color: var(--primary-dark); }
+    }
+
+    .player-highlight {
+      animation: highlightPulse 2s infinite alternate;
+      font-weight: 700;
+      color: var(--primary-dark);
+    }
+
+    @keyframes highlightPulse {
+      0% { color: var(--primary); }
+      100% { color: var(--primary-dark); }
+    }
+
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <button type="button" title="Ganti Mode Gelap/Terang" onclick="toggleTheme()">🌙</button>
+    <button type="button" title="Fullscreen" onclick="toggleFullscreen()">⛶</button>
+    <button type="button" title="Reset Game" onclick="resetGame()">⟲</button>
+  </div>
+
+  <div class="card" id="setup-screen">
+    <h1>Who's the Spy</h1>
+    <input type="number" id="player-count" placeholder="Jumlah Pemain (min 3)" min="3" />
+    <input type="text" id="common-word" placeholder="Kata Umum" />
+    <input type="text" id="spy-word" placeholder="Kata Spy" />
+    <button type="button" id="btn-setup-next" onclick="playClick(); showNameInput()">Lanjut</button>
+  </div>
+
+  <div class="card hidden" id="name-input-screen">
+    <h1>Masukkan Nama Pemain</h1>
+    <form id="name-form" autocomplete="off"></form>
+    <button type="button" id="btn-start-game" onclick="playClick(); startGame()">Mulai Game</button>
+  </div>
+
+  <div class="card hidden" id="game-screen">
+    <h1>Giliran <span id="current-player-name" class="player-highlight"></span></h1>
+    <button type="button" onclick="playClick(); showRole()">Lihat Peran</button>
+  </div>
+
+  <div class="card hidden" id="role-screen">
+    <h1>Peranmu</h1>
+    <div class="large-text" id="role-text"></div>
+    <button type="button" onclick="playClick(); nextPlayer()">Lanjut</button>
+  </div>
+
+  <div class="card hidden" id="timer-screen">
+    <h1>Diskusi Dulu Ya!</h1>
+    <p>Sisa Waktu: <span id="timer">60</span> detik</p>
+  </div>
+
+  <div class="card hidden" id="vote-screen">
+    <h1>Pilih Siapa Spy-nya</h1>
+    <div class="vote-list" id="vote-list"></div>
+  </div>
+
+  <div class="card hidden" id="result-screen">
+    <h1>Hasil Voting</h1>
+    <p id="vote-result"></p>
+    <p id="statistic"></p>
+    <button type="button" onclick="playClick(); resetGame()">Main Lagi</button>
+  </div>
+
+  <!-- Audio -->
+  <audio id="click-sound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_33819b4b73.mp3?filename=click-124467.mp3" preload="auto"></audio>
+  <audio id="alarm-sound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_1c2cc1a5c7.mp3?filename=alarm-126856.mp3" preload="auto"></audio>
+  <audio id="vote-sound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_9c1a9a978f.mp3?filename=button-6.mp3" preload="auto"></audio>
+  <audio id="role-sound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_25bf0a22f3.mp3?filename=success-5.mp3" preload="auto"></audio>
+  <audio id="tick-sound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_45a7d79aa4.mp3?filename=ticking-clock-5238.mp3" preload="auto"></audio>
+
+  <script>
+    let players = [], playerNames = [], spyIndex = 0, currentIndex = 0, voteCounts = [];
+    let winCount = 0, loseCount = 0;
+    let timerInterval = null;
+    let tickInterval = null;
+
+    const clickSound = document.getElementById('click-sound');
+    const alarmSound = document.getElementById('alarm-sound');
+    const voteSound = document.getElementById('vote-sound');
+    const roleSound = document.getElementById('role-sound');
+    const tickSound = document.getElementById('tick-sound');
+
+    function playClick() {
+      clickSound.currentTime = 0;
+      clickSound.play();
+    }
+
+    function playAlarm() {
+      alarmSound.currentTime = 0;
+      alarmSound.play();
+    }
+
+    function playVoteSound() {
+      voteSound.currentTime = 0;
+      voteSound.play();
+    }
+
+    function playRoleSound() {
+      roleSound.currentTime = 0;
+      roleSound.play();
+    }
+
+    function playTickSound() {
+      tickSound.currentTime = 0;
+      tickSound.play();
+    }
+
+    function toggleTheme() {
+      const body = document.body;
+      body.dataset.theme = body.dataset.theme === "dark" ? "light" : "dark";
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => alert('Fullscreen tidak didukung di browser ini.'));
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    function resetGame() {
+      clearInterval(timerInterval);
+      clearInterval(tickInterval);
+      players = [];
+      playerNames = [];
+      voteCounts = [];
+      spyIndex = 0;
+      currentIndex = 0;
+      document.getElementById("player-count").value = "";
+      document.getElementById("common-word").value = "";
+      document.getElementById("spy-word").value = "";
+      document.getElementById("name-form").innerHTML = "";
+      toggleScreens("result-screen", "setup-screen");
+    }
+
+    function showNameInput() {
+      const count = parseInt(document.getElementById("player-count").value);
+      const commonWord = document.getElementById("common-word").value.trim();
+      const spyWord = document.getElementById("spy-word").value.trim();
+
+      if (isNaN(count) || count < 3) {
+        alert("Masukkan jumlah pemain minimal 3.");
+        return;
+      }
+      if (!commonWord || !spyWord || commonWord.toLowerCase() === spyWord.toLowerCase()) {
+        alert("Masukkan dua kata yang berbeda dan tidak kosong.");
+        return;
+      }
+
+      const nameForm = document.getElementById("name-form");
+      nameForm.innerHTML = "";
+
+      for (let i = 0; i < count; i++) {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.placeholder = `Nama Pemain ${i + 1}`;
+        input.id = `name-${i}`;
+        input.required = true;
+        input.autocomplete = "off";
+        input.style.marginBottom = "10px";
+        nameForm.appendChild(input);
+        nameForm.appendChild(document.createElement("br"));
+      }
+
+      toggleScreens("setup-screen", "name-input-screen");
+    }
+
+    function startGame() {
+      const count = parseInt(document.getElementById("player-count").value);
+
+      playerNames = [];
+      const nameSet = new Set();
+
+      for (let i = 0; i < count; i++) {
+        const nameInput = document.getElementById(`name-${i}`);
+        if (!nameInput) {
+          alert("Error: Input nama pemain tidak ditemukan.");
+          return;
+        }
+        const name = nameInput.value.trim();
+        if (!name) {
+          alert("Semua nama harus diisi.");
+          return;
+        }
+        if (nameSet.has(name)) {
+          alert("Nama pemain harus unik.");
+          return;
+        }
+        nameSet.add(name);
+        playerNames.push(name);
+      }
+
+      players = Array(count).fill(document.getElementById("common-word").value.trim());
+      spyIndex = Math.floor(Math.random() * count);
+      players[spyIndex] = document.getElementById("spy-word").value.trim();
+
+      voteCounts = Array(count).fill(0);
+      currentIndex = 0;
+
+      toggleScreens("name-input-screen", "game-screen");
+      updatePlayerName();
+    }
+
+    function updatePlayerName() {
+      const currentNameEl = document.getElementById("current-player-name");
+      currentNameEl.textContent = playerNames[currentIndex];
+      currentNameEl.classList.remove("player-highlight");
+      // Reflow to restart animation
+      void currentNameEl.offsetWidth;
+      currentNameEl.classList.add("player-highlight");
+    }
+
+    function showRole() {
+      document.getElementById("role-text").textContent = players[currentIndex];
+      toggleScreens("game-screen", "role-screen");
+      playRoleSound();
+    }
+
+    function nextPlayer() {
+      currentIndex++;
+      if (currentIndex < players.length) {
+        updatePlayerName();
+        toggleScreens("role-screen", "game-screen");
+      } else {
+        startTimer();
+      }
+    }
+
+    function startTimer() {
+      let time = 60;
+      document.getElementById("timer").textContent = time;
+      toggleScreens("role-screen", "timer-screen");
+
+      timerInterval = setInterval(() => {
+        time--;
+        document.getElementById("timer").textContent = time;
+        if (time <= 5 && time > 0) {
+          playTickSound();
+        }
+        if (time <= 0) {
+          clearInterval(timerInterval);
+          playAlarm();
+          showVotingScreen();
+        }
+      }, 1000);
+    }
+
+    function showVotingScreen() {
+      document.getElementById("vote-list").innerHTML = "";
+      currentIndex = 0;
+      toggleScreens("timer-screen", "vote-screen");
+      addVoteButton();
+    }
+
+    function addVoteButton() {
+      const voteList = document.getElementById("vote-list");
+      voteList.innerHTML = `<p><strong>${playerNames[currentIndex]}</strong>, pilih siapa yang menurutmu Spy!</p>`;
+
+      playerNames.forEach((name, idx) => {
+        if (idx !== currentIndex) {
+          const btn = document.createElement("button");
+          btn.textContent = name;
+          btn.onclick = () => {
+            voteCounts[idx]++;
+            playVoteSound();
+            currentIndex++;
+            if (currentIndex < playerNames.length) {
+              addVoteButton();
+            } else {
+              showResult();
+            }
+          };
+          voteList.appendChild(btn);
+        }
+      });
+    }
+
+    function showResult() {
+      toggleScreens("vote-screen", "result-screen");
+
+      let maxVotes = Math.max(...voteCounts);
+      let suspects = [];
+      voteCounts.forEach((v, i) => {
+        if (v === maxVotes) suspects.push(i);
+      });
+
+      let resultText;
+      if (suspects.includes(spyIndex)) {
+        resultText = `<span class="highlight">Spy ditemukan!</span> Spy adalah <strong>${playerNames[spyIndex]}</strong>.`;
+      } else {
+        resultText = `<span class="wrong">Spy lolos!</span> Spy adalah <strong>${playerNames[spyIndex]}</strong>.`;
+      }
+
+      document.getElementById("vote-result").innerHTML = resultText;
+
+      let stat = playerNames.map((name, i) => `${name}: ${voteCounts[i]} suara`).join("<br>");
+      document.getElementById("statistic").innerHTML = stat;
+    }
+
+    function toggleScreens(hideId, showId) {
+      document.getElementById(hideId).classList.add("hidden");
+      document.getElementById(showId).classList.remove("hidden");
+    }
+
+    // Mode malam otomatis berdasarkan waktu lokal
+    (function autoTheme() {
+      const hour = new Date().getHours();
+      if (hour >= 18 || hour < 6) {
+        document.body.dataset.theme = "dark";
+      } else {
+        document.body.dataset.theme = "light";
+      }
+    })();
+
+  </script>
+</body>
+</html>
